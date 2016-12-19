@@ -1,6 +1,7 @@
 #include <termios.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <signal.h>
@@ -11,6 +12,8 @@
 #define DATA_BITS CS8	//chose CS7 or CS8
 #define STOP_BITS 1		//set the stop_bits '1' or '2'
 #define PARITY N		//chose	from 'N' 'E' 'O' 'S'
+
+#define PATH "/dev/tty11"
 /**
  * [set_com_config description]
  * @Author:  Krylin
@@ -21,7 +24,7 @@
  */
 int open_com()
 {
-	fd = open(PATH, O_RDWR | O_NOCTTY | O_NDELAY);
+		int fd = open(PATH, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (fd < 0) {
 		perror("open com_port error:");
 		exit(-1);
@@ -46,7 +49,7 @@ int set_com_config(int fd, struct termios *config)
 
 #if 1 == STOP_BITS
 	config->c_cflag &= ~CSTOPB;
-#elseif 2 == STOP_BITS
+#elif 2 == STOP_BITS
 	config->c_cflag |= CSTOPB;
 #endif
 
@@ -55,7 +58,7 @@ int set_com_config(int fd, struct termios *config)
 	config->c_cflag &= ~INPCK;
 #endif
 
-	config->c_cflag |= DATA_BITS	//
+	config->c_cflag |= DATA_BITS;	//
 	cfsetispeed(config, SPEED);		//
 	cfsetospeed(config, SPEED);
 
@@ -64,8 +67,8 @@ int set_com_config(int fd, struct termios *config)
 
 	tcflush(fd ,TCIFLUSH);			//flush the buffer
 
-	if ((tcsetattr(fd, TCSANOW, config) != 0) {
-		perror("fd set:")
+	if ((tcsetattr(fd, TCSANOW, config) != 0)) {
+		perror("fd set:");
 		return -1;
 	}
 
@@ -102,7 +105,7 @@ int main(int argc, char const *argv[])
 	copy_from_old(fd, &new_config, &old_config);
 	cfmakeraw(&new_config);
 
-	if (0 != set_com_config(int fd, &new_config)){
+	if (0 != set_com_config(fd, &new_config)){
 		printf("%s\n", "com init error!");
 		exit(-1);
 	}
