@@ -2,18 +2,19 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
 
-#define SPEED B115200	//remember 'B' is additional
+#define SPEED B9600	//remember 'B' is additional
 #define DATA_BITS CS8	//chose CS7 or CS8
 #define STOP_BITS 1		//set the stop_bits '1' or '2'
 #define PARITY N		//chose	from 'N' 'E' 'O' 'S'
 
-#define PATH "/dev/tty11"
+#define PATH "/dev/ttyS1"
 /**
  * [set_com_config description]
  * @Author:  Krylin
@@ -24,7 +25,7 @@
  */
 int open_com()
 {
-		int fd = open(PATH, O_RDWR | O_NOCTTY | O_NDELAY);
+	int fd = open(PATH, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (fd < 0) {
 		perror("open com_port error:");
 		exit(-1);
@@ -35,11 +36,10 @@ int open_com()
 		exit(-1);
 	}
 
-	if (0 == isatty(STDIN_FILENO)){
-		perror("it's not a com !!");
+	if (0 == isatty(fd)){
+		perror("it's not a com !!:");
 		exit(-1);
 	}
-
 	return fd;
 }
 
@@ -69,7 +69,7 @@ int set_com_config(int fd, struct termios *config)
 
 	if ((tcsetattr(fd, TCSANOW, config) != 0)) {
 		perror("fd set:");
-		return -1;
+		exit (-1);
 	}
 
 
@@ -88,7 +88,7 @@ void copy_from_old(int fd,
 {
 	if (tcgetattr(fd, old_config) != 0)
 	{
-		perror("ger old_config:");
+		perror("get old_config:");
 		exit(-1);
 	}
 
@@ -98,19 +98,59 @@ void copy_from_old(int fd,
 
 int main(int argc, char const *argv[])
 {
-
-    struct termios new_config, old_config;
+	char write_buf[64];
+	char write_buf_cmd_1[] = {0xf0};
+	char write_buf_cmd_2[] = {0x00};
+	char read_duf[64];
+	struct termios new_config, old_config;
 	int fd = open_com();
 
-	copy_from_old(fd, &new_config, &old_config);
+	memset(write_buf, 0, sizeof(write_buf));
+	copy_from_old(fd, &new_config, &old_config);	//copy the old setting
 	cfmakeraw(&new_config);
 
-	if (0 != set_com_config(fd, &new_config)){
-		printf("%s\n", "com init error!");
+	if (0 != set_com_config(fd, &new_config)){		//set config
+		perror("com init error!");
 		exit(-1);
+	}
+#if 0
+	for (size_t i = 0; i < 10; i++) {				//com_read
+		read(fd, read_duf, sizeof(read_duf));
+		printf("%s\n", read_duf);
+		/* code */
+	}
+#endif
+
+#if 0
+	if (argc > 1) {									//com_write_str
+		strcpy(write_buf, argv[1]);
+
+		strcat(write_buf, "\n\r");
+	}else if (1 == argc) {
+		gets(write_buf);
+		// scanf("%s", write_buf);
+		strcat(write_buf, "\n\r");
+	}
+
+	write(fd, write_buf, sizeof(write_buf));
+#endif
+	// strtol()
+	while (1) {
+		write(fd, write_buf_cmd_1, sizeof(write_buf_cmd_1));
+		sleep(1);
+		write(fd, write_buf_cmd_2, sizeof(write_buf_cmd_2));
+		sleep(1);
 	}
 
 
+
+
+
+	if (0 != set_com_config(fd, &new_config)){		//set config
+		perror("com restore	 error!");
+		exit(-1);
+	}
+	close(fd);
 
     return 0;
 }
