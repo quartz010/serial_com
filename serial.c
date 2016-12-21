@@ -3,9 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -13,8 +10,6 @@
 #define DATA_BITS CS8	//chose CS7 or CS8
 #define STOP_BITS 1		//set the stop_bits '1' or '2'
 #define PARITY N		//chose	from 'N' 'E' 'O' 'S'
-
-#define PATH "/dev/ttyS1"
 /**
  * [set_com_config description]
  * @Author:  Krylin
@@ -23,28 +18,31 @@
  * @param    config                  the pointer of old_config
  * @return                           0 if successed
  */
-int open_com()
+int open_com(const char *com_path)
 {
-	int fd = open(PATH, O_RDWR | O_NOCTTY | O_NDELAY);
-	if (fd < 0) {
+	int sfd = open(com_path, O_RDWR | O_NOCTTY | O_NDELAY);
+	if (sfd < 0) {
 		perror("open com_port error:");
 		exit(-1);
 	}
 
-	if (fcntl(fd, F_SETFL, 0) < 0) {
+	if (fcntl(sfd, F_SETFL, 0) < 0) {
 		perror("fcntl F_SETFL:");
 		exit(-1);
 	}
 
-	if (0 == isatty(fd)){
+	if (0 == isatty(sfd)){
 		perror("it's not a com !!:");
 		exit(-1);
 	}
-	return fd;
+	return sfd;
 }
 
-int set_com_config(int fd, struct termios *config)
+int set_com_config(int sfd, struct termios *config)
 {
+
+	cfmakeraw(config);
+
 	config->c_cflag &= ~CSIZE;
 
 #if 1 == STOP_BITS
@@ -65,92 +63,46 @@ int set_com_config(int fd, struct termios *config)
 	config->c_cc[VTIME] = 0;
 	config->c_cc[VMIN] = 1;
 
-	tcflush(fd ,TCIFLUSH);			//flush the buffer
+	tcflush(sfd ,TCIFLUSH);			//flush the buffer
 
-	if ((tcsetattr(fd, TCSANOW, config) != 0)) {
-		perror("fd set:");
+	if ((tcsetattr(sfd, TCSANOW, config) != 0)) {
+		perror("sfd set:");
 		exit (-1);
 	}
 
-
+	exit(0);
 }
-/**
- * [copy_from_old description]
- * @Author:  Krylin
- * @DateTime 2016-12-18T21:13:32+080
- * @param    fd                      the opened com num
- * @param    new_config              the pointer of new_config
- * @param    old_config              the pointer of old_config
- */
-void copy_from_old(int fd,
-	struct termios *new_config,
-	struct termios *old_config)
-{
-	if (tcgetattr(fd, old_config) != 0)
-	{
-		perror("get old_config:");
-		exit(-1);
-	}
 
-	*new_config = *old_config;
+void copy_from_old(int sfd,
+   struct termios *new_config,
+   struct termios *old_config)
+{
+   if (tcgetattr(sfd, old_config) != 0)
+   {
+	   perror("get old_config:");
+	   exit(-1);
+   }
+
+   *new_config = *old_config;
 
 }
 
-int main(int argc, char const *argv[])
+int send_byte_com(int sfd, char data_byte)
 {
-	char write_buf[64];
-	char write_buf_cmd_1[] = {0xf0};
-	char write_buf_cmd_2[] = {0x00};
-	char read_duf[64];
-	struct termios new_config, old_config;
-	int fd = open_com();
+	char write_buf_cmd[1];
+	write_buf_cmd[0] = data_byte;
 
-	memset(write_buf, 0, sizeof(write_buf));
-	copy_from_old(fd, &new_config, &old_config);	//copy the old setting
-	cfmakeraw(&new_config);
+	write(sfd, write_buf_cmd, sizeof(write_buf_cmd));
 
-	if (0 != set_com_config(fd, &new_config)){		//set config
-		perror("com init error!");
-		exit(-1);
-	}
-#if 0
-	for (size_t i = 0; i < 10; i++) {				//com_read
-		read(fd, read_duf, sizeof(read_duf));
-		printf("%s\n", read_duf);
-		/* code */
-	}
-#endif
+}
 
-#if 0
-	if (argc > 1) {									//com_write_str
-		strcpy(write_buf, argv[1]);
+int read_byte_com(int sfd)
+{
+	char read_buf_cmd[1];
+	char data_byte;
 
-		strcat(write_buf, "\n\r");
-	}else if (1 == argc) {
-		gets(write_buf);
-		// scanf("%s", write_buf);
-		strcat(write_buf, "\n\r");
-	}
+	read(sfd, read_buf_cmd, sizeof(read_buf_cmd));
+	data_byte = read_buf_cmd[0];
 
-	write(fd, write_buf, sizeof(write_buf));
-#endif
-	// strtol()
-	while (1) {
-		write(fd, write_buf_cmd_1, sizeof(write_buf_cmd_1));
-		sleep(1);
-		write(fd, write_buf_cmd_2, sizeof(write_buf_cmd_2));
-		sleep(1);
-	}
-
-
-
-
-
-	if (0 != set_com_config(fd, &new_config)){		//set config
-		perror("com restore	 error!");
-		exit(-1);
-	}
-	close(fd);
-
-    return 0;
+	return data_byte;
 }
