@@ -70,7 +70,6 @@ int set_com_config(int sfd, struct termios *config)
 		exit (-1);
 	}
 
-	exit(0);
 }
 
 void copy_from_old(int sfd,

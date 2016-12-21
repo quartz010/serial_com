@@ -8,7 +8,7 @@
 #include "serial.h"
 
 
-#define COM_PATH "/dev/stdout"
+#define COM_PATH "/dev/ttyS1"
 
 
 
@@ -32,6 +32,7 @@ int main(int argc, char const *argv[])
 	memset(com_read_buf, 0, sizeof(com_read_buf));
 
 	copy_from_old(sfd, &new_config, &old_config);	//copy the old setting
+
 	if (0 != set_com_config(sfd, &new_config)){		//set config
 		perror("com config error!");
 		exit(-1);
@@ -58,14 +59,14 @@ int main(int argc, char const *argv[])
 	write(fd, com_write_buf, sizeof(com_write_buf));
 #endif
 	// strtol()
-	// while (1) {
-	// 	send_byte_com(sfd, 0x55);
-	// 	sleep(1);
-	// 	send_byte_com(sfd, 0x66);
-	// 	sleep(1);
-	// }
+	while (1) {
+		send_byte_com(sfd, 0x55);
+		sleep(1);
+		send_byte_com(sfd, 0x66);
+		sleep(1);
+	}
 
-	
+
 
 
 	if (0 != set_com_config(sfd, &old_config)){		//set config
