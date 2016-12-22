@@ -23,6 +23,9 @@
 
 int main(int argc, char const *argv[])
 {
+	int pid;										//the pid of process
+	int len;										//the length of buf
+	char cmd_byte;
 	char com_write_buf[64];
 	char com_read_buf[64];
 	struct termios new_config, old_config;
@@ -57,7 +60,6 @@ int main(int argc, char const *argv[])
 	}
 
 	write(fd, com_write_buf, sizeof(com_write_buf));
-#endif
 	// strtol()
 	while (1) {
 		send_byte_com(sfd, 0x55);
@@ -65,8 +67,38 @@ int main(int argc, char const *argv[])
 		send_byte_com(sfd, 0x66);
 		sleep(1);
 	}
+#endif
+	if (( pid = fork()) < 0)
+    {
+        perror("fork function error!");
+        return 0;
+    }
 
+    if (pid == 0 ) {							//子进程
+	while(1)
+        {
+	    	bzero(com_read_buf, sizeof(com_read_buf));
+	    	read(sfd, com_read_buf, sizeof(com_read_buf));
 
+    		printf("%s\n", com_read_buf);
+        }
+    } else {							//父进程
+			while(1)
+			{
+	            // bzero(com_write_buf,sizeof(com_write_buf));
+		    	// read(STDIN_FILENO, com_write_buf, sizeof(com_write_buf));	//键盘输入发送信息
+		    	// len = strlen(com_write_buf);
+	            // com_write_buf[len] = '\n';			        //换行
+				//
+				// if(write(sfd, com_write_buf, sizeof(com_write_buf)) <= 0)
+				// 	printf("write error!\n");
+
+				read(STDIN_FILENO, com_write_buf, sizeof(com_write_buf));	//键盘输入发送信息
+
+				cmd_byte = strtol(com_write_buf, NULL, 16);
+				send_byte_com(sfd, cmd_byte);
+	        }
+	    }
 
 
 	if (0 != set_com_config(sfd, &old_config)){		//set config
